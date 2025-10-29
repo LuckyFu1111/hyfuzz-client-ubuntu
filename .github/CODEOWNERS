@@ -1,1 +1,4 @@
-* @hyfuzz/reviewers
+# Automatically requested reviewers for code changes
+*       @hyfuzz/core-team
+src/**  @hyfuzz/client-maintainers
+tests/** @hyfuzz/qa-team

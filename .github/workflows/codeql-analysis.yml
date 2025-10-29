@@ -1,18 +1,27 @@
-name: $(echo ${file} | tr '-' ' ' | sed 's/.*/\u&/')
+name: CodeQL
+
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'
+
 jobs:
-  ${file//-/_}:
+  analyze:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        language: ['python']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: github/codeql-action/init@v3
         with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt
-      - name: Run checks
-        run: pytest -q
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3

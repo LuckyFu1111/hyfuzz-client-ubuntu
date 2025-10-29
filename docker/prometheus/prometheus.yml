@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "hyfuzz-client"
+    static_configs:
+      - targets:
+          - hyfuzz-client:8000

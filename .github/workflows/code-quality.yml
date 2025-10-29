@@ -1,18 +1,23 @@
-name: $(echo ${file} | tr '-' ' ' | sed 's/.*/\u&/')
+name: Code Quality
+
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+
 jobs:
-  ${file//-/_}:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Run pytest coverage
+        uses: nick-invision/retry@v2
         with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt
-      - name: Run checks
-        run: pytest -q
+          timeout_minutes: 20
+          max_attempts: 3
+          command: |
+            pip install -r requirements-dev.txt
+            pytest --maxfail=1 --disable-warnings --cov=src --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: true

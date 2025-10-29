@@ -1,2 +1,23 @@
-close-issue-message: >-
-  This issue has been automatically closed due to inactivity.
+# Configuration for probot-stale
+
+perform: true
+limitPerRun: 30
+
+staleLabel: stale
+exemptLabels:
+  - pinned
+  - security
+
+pulls:
+  daysUntilStale: 30
+  daysUntilClose: 7
+
+issues:
+  daysUntilStale: 60
+  daysUntilClose: 14
+
+markComment: >
+  This issue has been automatically marked as stale because it has not had
+  recent activity. It will be closed if no further activity occurs.
+closeComment: >
+  Closing this because there has been no further activity. Please feel free to reopen if needed.
