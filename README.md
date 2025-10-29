@@ -1,499 +1,226 @@
-# HyFuzz Phase 3 - MCP Server (Windows)
+# HyFuzz Client (Ubuntu)
 
-A high-performance Model Context Protocol (MCP) server implementation for Windows, designed for the HyFuzz fuzzing framework. This server provides intelligent payload generation using Large Language Models (LLM) integrated with Ollama/DeepSeek.
+HyFuzz Client is the Linux-side execution agent for the HyFuzz distributed fuzzing platform. It receives
+payloads from the Windows-based HyFuzz server, executes them inside hardened sandboxes, captures deep
+instrumentation signals, and streams actionable results back to the control plane. The client targets
+Ubuntu 22.04+ and is designed to run both on bare-metal hosts and within virtualised environments such
+as VirtualBox or WSL.
+
+> **Phase 3 status** – this repository contains the Phase 3 deliverables of the Ubuntu client. Major
+> subsystems (targets, instrumentation, analysis, reporting, monitoring, scheduling, extended protocol
+> support) are implemented and wired together for end-to-end fuzzing campaigns.
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [System Requirements](#system-requirements)
+- [Key Capabilities](#key-capabilities)
+- [Architecture Overview](#architecture-overview)
+- [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Running the Server](#running-the-server)
-- [API Documentation](#api-documentation)
-- [Architecture](#architecture)
-- [Development](#development)
+- [Running Campaigns](#running-campaigns)
+- [Directory Structure](#directory-structure)
+- [Development Workflow](#development-workflow)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
+- [Further Documentation](#further-documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Overview
+## Key Capabilities
 
-The MCP Server is a central component of the HyFuzz Phase 3 distributed architecture. It:
+- **Protocol-aware execution** – CoAP, Modbus, MQTT, HTTP, and gRPC handlers with protocol-specific
+  payload shaping, validators, and vulnerability heuristics.
+- **Distributed orchestration** – Receives tasks via MCP, schedules local workers, and supports
+  distributed execution pools.
+- **Hardened sandboxing** – Launches payloads through an extensible sandbox manager with cgroups,
+  seccomp, namespaces, and optional QEMU/LXC isolation.
+- **Instrumentation suite** – ptrace-based syscall monitoring, strace/ltrace parsing, coverage tracking,
+  sanitizer log ingestion, and memory telemetry.
+- **Crash & exploitability analysis** – Automatic triage, deduplication, exploitability scoring, and
+  generation of succinct root-cause summaries.
+- **Reporting & feedback** – Produces HTML/JSON/Markdown/CSV reports and pushes aggregated metrics
+  back to the HyFuzz server for adaptive learning.
+- **Operational monitoring** – Integrated metrics collector, resource monitor, alerting hooks, and
+  health endpoints for fleet observability.
 
-- Implements the Model Context Protocol (MCP) for client-server communication
-- Integrates with Ollama/DeepSeek for intelligent payload generation
-- Provides knowledge base management (CWE/CVE repositories)
-- Supports multiple transport protocols (HTTP, stdio, WebSocket)
-- Offers caching and optimization for improved performance
-- Generates intelligent fuzzing payloads using Chain-of-Thought (CoT) reasoning
+## Architecture Overview
 
-## Features
+The client is composed of several cooperating domains:
 
-### Core Features
+- **MCP Client** (`src/mcp_client/`) – maintains the transport session with the HyFuzz server, negotiates
+  protocol support, and streams tasks/results.
+- **Execution Core** (`src/execution/`) – orchestrates payload execution through the sandbox manager,
+  tracks lifecycle events, and aggregates runtime data.
+- **Targets Module** (`src/targets/`) – scans networks, fingerprints services, and resolves campaign
+  scopes prior to fuzzing.
+- **Instrumentation Layer** (`src/instrumentation/`) – attaches trace hooks, collects coverage, and
+  persists low-level telemetry for later analysis.
+- **Analysis Pipeline** (`src/analysis/`) – processes crash dumps, sanitizer reports, and generates
+  exploitability insights using knowledge-driven heuristics.
+- **Judge Integration** (`src/judge/`) – scores results locally, prepares feedback for the server-side
+  LLM judge, and applies adaptive tuning instructions.
+- **Reporting & Monitoring** (`src/reporting/`, `src/monitoring/`, `src/notifications/`) – converts raw
+  execution data into human-readable artefacts and operational alerts.
 
-- **Model Context Protocol Implementation**: Full MCP 2024.01 compatibility
-- **LLM Integration**: Seamless Ollama integration with DeepSeek model support
-- **Knowledge Base Management**: CWE/CVE database integration
-- **Intelligent Payload Generation**: CoT-based reasoning for complex payloads
-- **Multi-Transport Support**: HTTP, stdio, and WebSocket protocols
-- **Caching Layer**: Response and result caching for performance
-- **Async Architecture**: Fully asynchronous request handling
+A detailed component map is available in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-### Security Features
+## Prerequisites
 
-- Request validation and sanitization
-- Error handling and exception management
-- Session management
-- Optional API key authentication
-
-### Monitoring & Observability
-
-- Comprehensive logging system
-- Performance monitoring
-- Health check endpoints
-- Metrics collection
-
-## System Requirements
-
-### Minimum Requirements
-
-- **OS**: Windows 10 (Build 19041) or later, Windows Server 2019 or later
-- **Python**: 3.9 or later
-- **RAM**: 4GB minimum (8GB recommended)
-- **Disk Space**: 2GB for venv + dependencies + data
-- **Network**: TCP/IP connectivity for MCP communication
-
-### Optional Dependencies
-
-- **Ollama**: For local LLM inference (required for payload generation)
-- **Redis**: For distributed caching (optional, uses in-memory cache by default)
-
-### Recommended Setup
-
-- **OS**: Windows 11 Pro or Windows Server 2022
-- **Python**: 3.11 or later
-- **RAM**: 16GB
-- **GPU**: NVIDIA GPU with CUDA support for faster LLM inference
-- **Network**: Gigabit Ethernet for optimal performance
+- Ubuntu 22.04 LTS (or newer) with Python 3.10+
+- VirtualBox VM guest additions enabled when running inside macOS/Windows hosts
+- Access to the HyFuzz server (MCP endpoint reachable over TCP/HTTP/WebSocket)
+- Optional tooling:
+  - `docker`/`podman` for containerised execution
+  - `strace`, `ltrace`, `gdb`, `perf`, and sanitizers for extended instrumentation
+  - `sqlite3` command-line tools for inspecting the local results database
 
 ## Installation
 
-### Step 1: Clone or Download the Repository
-```bash
-# Clone from repository
-git clone https://github.com/your-org/hyfuzz-server-windows.git
-cd hyfuzz-server-windows
-
-# Or extract from archive
-# Extract the .zip file and navigate to the directory
-```
-
-### Step 2: Create Virtual Environment
-```powershell
-# Create Python virtual environment
-python -m venv venv
-
-# Activate virtual environment
-.\venv\Scripts\activate
-```
-
-### Step 3: Install Dependencies
-```powershell
-# Install required packages
-pip install -r requirements-dev.txt
-
-# Or for production only
-pip install -r requirements.txt
-```
-
-### Step 4: Configure Environment
-```powershell
-# Copy environment template to .env
-copy config\.env.template .env
-
-# Edit .env file with your configuration
-notepad .env
-```
-
-### Step 5: Install Ollama (if not already installed)
-```powershell
-# Download from https://ollama.ai
-# Follow installation instructions for Windows
-
-# After installation, pull the model
-ollama pull deepseek-r1
-
-# Verify installation
-ollama list
-```
-
-### Step 6: Verify Installation
-```powershell
-# Run health check
-python scripts/health_check.py
-
-# Expected output: All services operational
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/hyfuzz-client-ubuntu.git
+   cd hyfuzz-client-ubuntu
+   ```
+2. **Create a virtual environment**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+4. **Install optional tooling** (recommended)
+   ```bash
+   sudo apt install -y strace ltrace gdb clang lldb sqlite3 docker.io
+   ```
+5. **Initialise local data directories**
+   ```bash
+   make prepare
+   ```
 
 ## Configuration
 
-### Basic Configuration
+1. Copy the default environment template:
+   ```bash
+   cp config/.env.template .env
+   ```
+2. Edit `.env` to match your environment (server URL, authentication, sandbox paths).
+3. Review YAML configuration bundles in `config/`:
+   - `execution_config.yaml` – worker pools, timeouts, sandbox profiles
+   - `instrumentation_config.yaml` – tracing plugins, sampling rates
+   - `analysis_config.yaml` – crash classifiers, deduplication thresholds
+   - `monitoring_config.yaml` – metrics exporters and alerting hooks
+   - `notification_config.yaml` – Slack/email/webhook credentials
+4. Example presets are provided under `config/example_configs/` for development, testing, aggressive,
+   safe, protocol-specific, and distributed scenarios.
 
-Edit `.env` file:
-```bash
-# Server
-SERVER_HOST=0.0.0.0
-SERVER_PORT=5000
-TRANSPORT_TYPE=http
+## Running Campaigns
 
-# Ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-r1
+- **Smoke test the connection**
+  ```bash
+  python scripts/test_connection.py --server http://SERVER_HOST:PORT
+  ```
+- **Run a quick protocol campaign**
+  ```bash
+  python scripts/run_coap_test.py --config config/example_configs/config_coap.yaml
+  ```
+- **Launch a full adaptive campaign**
+  ```bash
+  python scripts/run_campaign.py --config config/example_configs/config_dev.yaml
+  ```
+- **Monitor runtime metrics**
+  ```bash
+  python scripts/monitor_client.py
+  ```
+- **Generate reports after execution**
+  ```bash
+  python scripts/generate_report.py --format html --output data/reports/html/latest.html
+  ```
 
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/server.log
+Refer to [`docs/USAGE.md`](docs/USAGE.md) for end-to-end walkthroughs.
 
-# Development
-DEBUG=false
+## Directory Structure
+
+The most important directories are summarised below:
+
+```
+├── src/
+│   ├── analysis/           # Crash & exploitability analysis pipeline
+│   ├── execution/          # Orchestrator, sandbox manager, runtime monitors
+│   ├── instrumentation/    # Coverage, ptrace, signal interception
+│   ├── judge/              # Local scoring, adaptive feedback hooks
+│   ├── mcp_client/         # Transports, protocol negotiation, session handling
+│   ├── monitoring/         # Metrics collection, health checks, exporters
+│   ├── notifications/      # Slack/email/webhook notifiers
+│   ├── protocols/          # Protocol-specific handlers & fuzzers
+│   ├── reporting/          # Report generators & templates
+│   ├── targets/            # Discovery, profiling, fingerprinting
+│   └── utils/              # Shared utilities and helpers
+├── tests/                  # Unit, integration, performance, and e2e suites
+├── scripts/                # Operational scripts for campaigns, monitoring, maintenance
+├── docs/                   # Comprehensive documentation set
+├── data/                   # Payload corpora, results, reports, SQLite DB
+└── config/                 # Environment, execution, instrumentation, monitoring configs
 ```
 
-### Advanced Configuration
+## Development Workflow
 
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration options.
-
-## Running the Server
-
-### Quick Start
-```powershell
-# Activate virtual environment
-.\venv\Scripts\activate
-
-# Run the server
-python -m src
-
-# Server will start on http://0.0.0.0:5000
-```
-
-### Using PyCharm
-
-1. Open the project in PyCharm
-2. Configure Python Interpreter: File → Settings → Project → Python Interpreter
-3. Select virtual environment (venv\Scripts\python.exe)
-4. Run Configuration: Run → Edit Configurations
-5. Create new Python configuration:
-   - Script path: `src/__main__.py`
-   - Working directory: `<project root>`
-6. Click Run or press Shift+F10
-
-### Using Command Line
-```powershell
-# Run with specific configuration
-python -m src --config config/config_dev.yaml
-
-# Run with debug mode
-python -m src --debug
-
-# Run with custom port
-python -m src --port 8000
-```
-
-### Health Check
-```powershell
-# Test server connectivity
-curl http://localhost:5000/health
-
-# Expected response:
-# {"status": "healthy", "version": "1.0.0"}
-```
-
-## API Documentation
-
-### MCP Endpoints
-
-#### Initialize Connection
-```http
-POST /mcp/initialize
-Content-Type: application/json
-
-{
-  "protocolVersion": "2024.01",
-  "clientInfo": {
-    "name": "hyfuzz-client",
-    "version": "1.0.0"
-  }
-}
-```
-
-#### List Resources
-```http
-GET /mcp/resources
-```
-
-#### List Tools
-```http
-GET /mcp/tools
-```
-
-#### Call Tool
-```http
-POST /mcp/tools/call
-Content-Type: application/json
-
-{
-  "name": "generate_payloads",
-  "arguments": {
-    "protocol": "coap",
-    "target": "192.168.1.100",
-    "context": "vulnerability testing"
-  }
-}
-```
-
-### Health & Status
-```http
-GET /health
-GET /status
-```
-
-For complete API documentation, see [docs/API.md](docs/API.md).
-
-## Architecture
-
-### Component Overview
-```
-┌─────────────────────────────────────────────────┐
-│         MCP Server (Windows)                    │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ┌──────────────────────────────────────────┐  │
-│  │ MCP Server Core                          │  │
-│  │ ├─ server.py (Main server class)        │  │
-│  │ ├─ message_handler.py                   │  │
-│  │ └─ capability_manager.py                │  │
-│  └──────────────────────────────────────────┘  │
-│                                                 │
-│  ┌──────────────────────────────────────────┐  │
-│  │ Transport Layer                          │  │
-│  │ ├─ http_transport.py                    │  │
-│  │ ├─ stdio_transport.py                   │  │
-│  │ └─ websocket_transport.py               │  │
-│  └──────────────────────────────────────────┘  │
-│                                                 │
-│  ┌──────────────────────────────────────────┐  │
-│  │ LLM Service Layer                        │  │
-│  │ ├─ llm_client.py (Ollama integration)   │  │
-│  │ ├─ llm_service.py (High-level API)      │  │
-│  │ └─ cot_engine.py (CoT reasoning)        │  │
-│  └──────────────────────────────────────────┘  │
-│                                                 │
-│  ┌──────────────────────────────────────────┐  │
-│  │ Knowledge Base                           │  │
-│  │ ├─ cwe_repository.py                    │  │
-│  │ ├─ cve_repository.py                    │  │
-│  │ └─ graph_cache.py                       │  │
-│  └──────────────────────────────────────────┘  │
-│                                                 │
-└─────────────────────────────────────────────────┘
-```
-
-### Module Dependencies
-
-- **mcp_server**: Core MCP protocol implementation
-- **llm**: Ollama integration and LLM operations
-- **knowledge**: CWE/CVE database management
-- **models**: Data model definitions
-- **config**: Configuration management
-- **utils**: Utilities and helpers
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
-
-## Development
-
-### Setting Up Development Environment
-```powershell
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Install pre-commit hooks (optional)
-# Uncomment if using pre-commit
-# pre-commit install
-```
-
-### Code Style
-
-- **Python**: PEP 8 with Black formatter
-- **Line length**: 100 characters
-- **Type hints**: Required for all functions
-- **Documentation**: Docstring for all classes and public methods
-
-### Running Tests
-```powershell
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src
-
-# Run specific test file
-pytest tests/unit/test_server.py
-
-# Run with verbose output
-pytest -v
-
-# Run integration tests only
-pytest tests/integration/
-```
-
-### Code Quality
-```powershell
-# Format code with Black
-black src tests
-
-# Check style with Flake8
-flake8 src tests
-
-# Type check with MyPy
-mypy src
-```
+1. **Run linters & type checks**
+   ```bash
+   make lint
+   ```
+2. **Execute the unit and integration suites**
+   ```bash
+   make test
+   ```
+3. **Start the client in development mode**
+   ```bash
+   python scripts/start_client.py --config config/example_configs/config_dev.yaml
+   ```
+4. **Iterate on protocols or instrumentation** – use notebooks in `notebooks/` to explore coverage,
+   crash clusters, and metrics dashboards.
 
 ## Testing
 
-### Test Structure
-
-- **Unit Tests** (`tests/unit/`): Individual component testing
-- **Integration Tests** (`tests/integration/`): Component interaction testing
-- **Performance Tests** (`tests/performance/`): Benchmark and performance testing
-
-### Running Specific Tests
-```powershell
-# Run unit tests
-pytest tests/unit/
-
-# Run integration tests
-pytest tests/integration/
-
-# Run performance benchmarks
-pytest tests/performance/
-
-# Run a specific test
-pytest tests/unit/test_server.py::test_server_initialization
-```
+- **Unit tests**
+  ```bash
+  pytest tests/unit
+  ```
+- **Integration tests**
+  ```bash
+  pytest tests/integration
+  ```
+- **Performance benchmarks**
+  ```bash
+  pytest tests/performance
+  ```
+- **End-to-end validation**
+  ```bash
+  pytest tests/e2e
+  ```
 
 ## Troubleshooting
 
-### Common Issues
+- Inspect logs in `logs/` (`execution.log`, `instrumentation.log`, `crash.log`, etc.).
+- Use `python scripts/analyze_crashes.py` to inspect recent crash artefacts.
+- Re-run `python scripts/health_check.sh` to verify sandbox prerequisites.
+- Confirm connectivity to the HyFuzz server using `scripts/test_connection.py` and review firewall
+  rules on both ends.
+- Review [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for an extensive checklist.
 
-#### Issue: "Cannot connect to Ollama"
+## Further Documentation
 
-**Solution:**
-```powershell
-# Check if Ollama is running
-curl http://localhost:11434/api/tags
-
-# If not running, start Ollama
-ollama serve
-
-# Verify model is loaded
-ollama list
-```
-
-#### Issue: "Port 5000 already in use"
-
-**Solution:**
-```powershell
-# Find process using port 5000
-netstat -ano | findstr :5000
-
-# Kill process (replace PID with actual process ID)
-taskkill /PID <PID> /F
-
-# Or use different port
-set SERVER_PORT=5001
-python -m src
-```
-
-#### Issue: "Module not found error"
-
-**Solution:**
-```powershell
-# Ensure virtual environment is activated
-.\venv\Scripts\activate
-
-# Reinstall dependencies
-pip install -r requirements-dev.txt --force-reinstall
-```
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more issues and solutions.
-
-## Performance Optimization
-
-### For Production
-
-1. **Use production configuration**: `config_prod.yaml`
-2. **Enable caching**: Set `CACHE_ENABLED=true`
-3. **Use Redis backend**: Set `CACHE_BACKEND=redis`
-4. **Disable debug mode**: Set `DEBUG=false`
-5. **Optimize logging**: Set `LOG_LEVEL=WARNING`
-
-### Benchmarking
-```powershell
-# Run performance benchmarks
-python scripts/benchmark.py
-
-# Run with specific parameters
-python scripts/benchmark.py --iterations 1000 --workers 4
-```
+The `docs/` directory contains focused guides on setup, architecture, instrumentation, target
+management, crash analysis, monitoring, and deployment. Start with [`docs/README.md`](docs/README.md)
+for the recommended reading order.
 
 ## Contributing
 
-### Development Workflow
-
-1. Create feature branch: `git checkout -b feature/feature-name`
-2. Make changes and write tests
-3. Ensure all tests pass: `pytest`
-4. Format code: `black src tests`
-5. Check style: `flake8 src tests`
-6. Commit changes: `git commit -m "Add feature"`
-7. Push to repository: `git push origin feature/feature-name`
-8. Create Pull Request
-
-### Coding Guidelines
-
-- Follow PEP 8 standards
-- Use type hints for all functions
-- Write comprehensive docstrings
-- Include unit tests for new features
-- Update documentation as needed
+Contributions are welcome! Please review [`CONTRIBUTING.md`](CONTRIBUTING.md) and open a pull request
+with context about the scenario you are targeting. For significant changes, discuss them in an issue
+first to align on goals and interfaces.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
-
-## Additional Resources
-
-- [MCP Specification](https://modelcontextprotocol.io)
-- [Ollama Documentation](https://github.com/jmorganca/ollama)
-- [DeepSeek Model Card](https://huggingface.co/deepseek-ai/deepseek-r1)
-- [Python Async Documentation](https://docs.python.org/3/library/asyncio.html)
-
-## Support
-
-For issues, questions, or suggestions:
-
-1. Check [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-2. Review existing GitHub issues
-3. Create new GitHub issue with detailed information
-4. Contact development team
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
-
----
-
-**Last Updated**: January 2025
-**Version**: 1.0.0
-**Status**: Production Ready
+HyFuzz Client is released under the MIT License. See [`LICENSE`](LICENSE) for details.
