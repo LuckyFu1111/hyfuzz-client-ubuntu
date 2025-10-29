@@ -1,142 +1,15 @@
-# ============================================================================
-# HyFuzz MCP Server - Production Dependencies
-# ============================================================================
-# Core runtime dependencies for production deployment
-# Use: pip install -r requirements.txt
-# ============================================================================
-
-# ============================================================================
-# CORE FRAMEWORKS & LIBRARIES
-# ============================================================================
-
-# Async HTTP framework (if using FastAPI/Uvicorn instead of plain asyncio)
-# fastapi==0.104.1
-# uvicorn[standard]==0.24.0
-
-# HTTP client for requests
-requests==2.31.0
-
-# Async HTTP client
-aiohttp==3.9.1
-
-# Configuration management
-python-dotenv==1.0.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-
-# YAML parsing
-PyYAML==6.0.1
-
-# ============================================================================
-# MODEL CONTEXT PROTOCOL (MCP)
-# ============================================================================
-
-# MCP SDK (if available as package)
-# Install from: pip install mcp-python or use local implementation
-# mcp==1.0.0
-
-# ============================================================================
-# LLM INTEGRATION
-# ============================================================================
-
-# HTTP client specifically for Ollama (via requests, no separate package needed)
-
-# Token counting and processing
-tiktoken==0.5.2
-
-# JSON schema validation
-jsonschema==4.20.0
-
-# ============================================================================
-# KNOWLEDGE BASE & DATA PROCESSING
-# ============================================================================
-
-# Data serialization and caching
-pickle (built-in)
-json (built-in)
-
-# Numpy for numerical operations (if needed)
-numpy==1.26.2
-
-# Pandas for data manipulation (optional)
-pandas==2.1.3
-
-# Graph operations for CWE/CVE relationships
-networkx==3.2
-
-# ============================================================================
-# CACHING & PERFORMANCE
-# ============================================================================
-
-# In-memory caching
-cachetools==5.3.2
-
-# Redis support (optional, for distributed caching)
-# redis==5.0.1
-
-# ============================================================================
-# LOGGING & MONITORING
-# ============================================================================
-
-# Structured logging
-python-json-logger==2.0.7
-
-# Built-in logging (standard library, included)
-
-# ============================================================================
-# UTILITIES & HELPERS
-# ============================================================================
-
-# Click for command-line interfaces
-click==8.1.7
-
-# Color output for terminal
-colorama==0.4.6
-
-# Decorators and utilities
-decorator==5.1.1
-
-# ============================================================================
-# DATABASE (Optional)
-# ============================================================================
-
-# SQLAlchemy for ORM (if using database backend)
-# SQLAlchemy==2.0.23
-
-# SQLite support (built-in with Python)
-
-# PostgreSQL support (if needed)
-# psycopg2-binary==2.9.9
-
-# ============================================================================
-# SECURITY
-# ============================================================================
-
-# CORS handling
-# python-cors==4.0.0
-
-# API key management
-# PyJWT==2.8.1
-
-# ============================================================================
-# VERSION CONSTRAINTS
-# ============================================================================
-
-# Ensure compatibility with specified versions
-# Uncomment to pin to specific versions
-
-# Core dependencies version floor
 requests>=2.28.0
 aiohttp>=3.8.0
+python-dotenv>=1.0.0
 pydantic>=2.0.0
-
-# ============================================================================
-# NOTES
-# ============================================================================
-
-# - All packages are pinned to compatible versions
-# - Use -U flag to upgrade: pip install -U -r requirements.txt
-# - For security updates: pip list --outdated
-# - To generate lock file: pip freeze > requirements.lock
-
-# ============================================================================
+pydantic-settings>=2.0.0
+PyYAML>=6.0.0
+tiktoken>=0.5.0
+numpy>=1.26.0
+pandas>=2.1.0
+networkx>=3.2.0
+cachetools>=5.3.0
+python-json-logger>=2.0.0
+click>=8.1.0
+colorama>=0.4.6
+decorator>=5.1.0
