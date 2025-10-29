@@ -101,7 +101,7 @@ python-dotenv==1.0.0
 # debugpy==1.8.0
 
 # Line-by-line profiler
-line-profiler==4.1.0
+line-profiler==5.0.0
 
 # Memory profiler
 memory-profiler==0.61.0
