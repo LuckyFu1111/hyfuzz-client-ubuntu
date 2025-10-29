@@ -19,13 +19,13 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 
 # Test coverage reporting
-pytest-cov==4.1.0
+pytest-cov==7.0.0
 
 # Parallel test execution
 pytest-xdist==3.5.0
 
 # Mock HTTP responses
-responses==0.24.1
+responses==0.25.8
 
 # Mock testing utilities
 pytest-mock==3.12.0
@@ -101,7 +101,7 @@ python-dotenv==1.0.0
 # debugpy==1.8.0
 
 # Line-by-line profiler
-line-profiler==4.1.0
+line-profiler==5.0.0
 
 # Memory profiler
 memory-profiler==0.61.0
@@ -114,7 +114,7 @@ memory-profiler==0.61.0
 build==1.0.3
 
 # Package distribution
-twine==4.0.2
+twine==6.2.0
 
 # Wheel support
 wheel==0.42.0
@@ -127,7 +127,7 @@ setuptools>=68.0.0
 # ============================================================================
 
 # Git utilities
-GitPython==3.1.40
+GitPython==3.1.45
 
 # Pre-commit framework
 # pre-commit==3.6.0
