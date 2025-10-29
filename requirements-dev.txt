@@ -25,7 +25,7 @@ pytest-cov==4.1.0
 pytest-xdist==3.5.0
 
 # Mock HTTP responses
-responses==0.24.1
+responses==0.25.8
 
 # Mock testing utilities
 pytest-mock==3.12.0
