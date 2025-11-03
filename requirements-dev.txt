@@ -117,7 +117,7 @@ build==1.0.3
 twine==6.2.0
 
 # Wheel support
-wheel==0.42.0
+wheel==0.45.1
 
 # Setup tools
 setuptools>=68.0.0
