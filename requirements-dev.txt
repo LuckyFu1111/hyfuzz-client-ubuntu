@@ -147,7 +147,7 @@ GitPython==3.1.45
 # ============================================================================
 
 # Dependency vulnerability scanner
-bandit==1.7.5
+bandit==1.8.6
 
 # Security linter
 # safety==2.3.5
